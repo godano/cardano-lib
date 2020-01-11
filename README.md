@@ -1,8 +1,5 @@
 # Cardano
 
-## Entities
+Cardano entities and utilities in Golang. Contribution are welcome.
 
-### Block Slot Date
-...
-
-WIP
+TICKER: SOBIT
