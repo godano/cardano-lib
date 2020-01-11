@@ -1,2 +1,8 @@
-# go-cardano
-Cardano entities and utilities in Golang.
+# Cardano
+
+## Entities
+
+### Block Slot Date
+...
+
+WIP
