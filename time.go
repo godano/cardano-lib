@@ -195,6 +195,6 @@ func FullSlotDateFromInt(epoch uint64, slot uint64, settings TimeSettings) *Full
     return &FullSlotDate{PlainSlotDate: PlainSlotDate{epoch: new(big.Int).SetUint64(epoch), slot: new(big.Int).SetUint64(slot)}, timeSettings: settings}
 }
 
-func MakeFullSlotDate(plainDate PlainSlotDate, settings TimeSettings) *FullSlotDate {
+func MakeFullSlotDate(plainDate *PlainSlotDate, settings TimeSettings) *FullSlotDate {
     return &FullSlotDate{PlainSlotDate: PlainSlotDate{epoch: plainDate.GetEpoch(), slot: plainDate.GetSlot()}, timeSettings: settings}
 }
