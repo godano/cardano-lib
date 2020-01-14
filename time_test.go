@@ -109,7 +109,7 @@ func TestPlainSlotDate_ADiffB_mustReturnPositive(t *testing.T) {
     settings := TimeSettings{GenesisBlockDateTime: genesisTime, SlotsPerEpoch: new(big.Int).SetInt64(43200), SlotDuration: time.Duration(2) * time.Second}
     dateA := FullSlotDateFromInt(17, 1200, settings)
     dateB := FullSlotDateFromInt(16, 35600, settings)
-    assert.Equal(t, dateA.Diff(dateB).Int64(), int64(8800), "The difference between the two slot dates must be '19600'")
+    assert.Equal(t, int64(8800), dateA.Diff(dateB).Int64(), "The difference between the two slot dates must be '19600'")
 }
 
 func TestPlainSlotDate_ADiffSubsequentB_mustReturnNegative(t *testing.T) {
@@ -117,7 +117,7 @@ func TestPlainSlotDate_ADiffSubsequentB_mustReturnNegative(t *testing.T) {
     settings := TimeSettings{GenesisBlockDateTime: genesisTime, SlotsPerEpoch: new(big.Int).SetInt64(43200), SlotDuration: time.Duration(2) * time.Second}
     dateA := FullSlotDateFromInt(18, 43200, settings)
     dateB := FullSlotDateFromInt(18, 43200, settings)
-    assert.Equal(t, dateA.Diff(dateB).Int64(), int64(0), "The difference between the two slot dates must be '19600'")
+    assert.Equal(t, int64(0), dateA.Diff(dateB).Int64(), "The difference between the two slot dates must be '19600'")
 }
 
 func TestPlainSlotDate_ADiffPreviousB_mustReturn0(t *testing.T) {
@@ -125,7 +125,7 @@ func TestPlainSlotDate_ADiffPreviousB_mustReturn0(t *testing.T) {
     settings := TimeSettings{GenesisBlockDateTime: genesisTime, SlotsPerEpoch: new(big.Int).SetInt64(43200), SlotDuration: time.Duration(2) * time.Second}
     dateA := FullSlotDateFromInt(17, 43200, settings)
     dateB := FullSlotDateFromInt(18, 1, settings)
-    assert.Equal(t, dateA.Diff(dateB).Int64(), int64(-1), "The difference between the two slot dates must be '19600'")
+    assert.Equal(t, int64(-1), dateA.Diff(dateB).Int64(), "The difference between the two slot dates must be '19600'")
 }
 
 func TestPlainSlotDate_ADiffB_mustReturnNegative(t *testing.T) {
@@ -133,7 +133,7 @@ func TestPlainSlotDate_ADiffB_mustReturnNegative(t *testing.T) {
     settings := TimeSettings{GenesisBlockDateTime: genesisTime, SlotsPerEpoch: new(big.Int).SetInt64(43200), SlotDuration: time.Duration(2) * time.Second}
     dateA := FullSlotDateFromInt(8, 40100, settings)
     dateB := FullSlotDateFromInt(10, 35600, settings)
-    assert.Equal(t, dateA.Diff(dateB).Int64(), int64(-81900), "The difference between the two slot dates must be '-81900'.")
+    assert.Equal(t, int64(-81900), dateA.Diff(dateB).Int64(), "The difference between the two slot dates must be '-81900'.")
 }
 
 func TestFullSlotDate_GetStartAndEndTime(t *testing.T) {
@@ -144,5 +144,40 @@ func TestFullSlotDate_GetStartAndEndTime(t *testing.T) {
     // test
     expectedStart, _ := time.Parse(time.RFC3339, "2019-12-31T02:08:43+01:00")
     diff := date.GetStartDateTime().Sub(expectedStart)
-    assert.Equal(t, diff, time.Duration(0), "The start time must be at '2019-12-31T02:08:43+01:00', but there was a '%s' difference.", diff.String())
+    assert.Equal(t, time.Duration(0), diff, "The start time must be at '2019-12-31T02:08:43+01:00', but there was a '%s' difference.", diff.String())
+}
+
+func TestTimeSettings_GetFullSlotDateForGenesisCreationTime(t *testing.T) {
+    // setup
+    genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
+    settings := TimeSettings{GenesisBlockDateTime: genesisTime, SlotsPerEpoch: new(big.Int).SetInt64(43200), SlotDuration: time.Duration(2) * time.Second}
+
+    data, err := settings.GetSlotDateFor(genesisTime)
+    if assert.Nil(t, err, "Method must not return an error.") {
+        assert.Equal(t, uint64(0), data.GetEpoch().Uint64(), "The epoch must be 0.")
+        assert.Equal(t, uint64(0), data.GetSlot().Uint64(), "The epoch must be 0.")
+    }
+}
+
+func TestTimeSettings_GetFullSlotDateForRandomTime(t *testing.T) {
+    // setup
+    genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
+    randomTime, _ := time.Parse(time.RFC3339, "2020-01-14T16:51:37+01:00")
+    settings := TimeSettings{GenesisBlockDateTime: genesisTime, SlotsPerEpoch: new(big.Int).SetInt64(43200), SlotDuration: time.Duration(2) * time.Second}
+
+    data, err := settings.GetSlotDateFor(randomTime)
+    if assert.Nil(t, err, "Method must not return an error.") {
+        assert.Equal(t, int64(31), data.GetEpoch().Int64(), "The epoch must be 31.")
+        assert.Equal(t, int64(37140), data.GetSlot().Int64(), "The epoch must be 37140.")
+    }
+}
+
+func TestTimeSettings_GetFullSlotDateOfTimeBeforeGenesis_MustReturnError(t *testing.T) {
+    // setup
+    genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
+    randomTime, _ := time.Parse(time.RFC3339, "2019-01-14T16:51:37+01:00")
+    settings := TimeSettings{GenesisBlockDateTime: genesisTime, SlotsPerEpoch: new(big.Int).SetInt64(43200), SlotDuration: time.Duration(2) * time.Second}
+
+    _, err := settings.GetSlotDateFor(randomTime)
+    assert.NotNil(t, err, "Method must return an error, because time is before the genesis block.")
 }

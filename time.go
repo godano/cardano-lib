@@ -198,3 +198,18 @@ func FullSlotDateFromInt(epoch uint64, slot uint64, settings TimeSettings) *Full
 func MakeFullSlotDate(plainDate *PlainSlotDate, settings TimeSettings) *FullSlotDate {
     return &FullSlotDate{PlainSlotDate: PlainSlotDate{epoch: plainDate.GetEpoch(), slot: plainDate.GetSlot()}, timeSettings: settings}
 }
+
+// gets the full slot date for the given time.
+func (timeSettings *TimeSettings) GetSlotDateFor(t time.Time) (*FullSlotDate, error) {
+    if t.Before(timeSettings.GenesisBlockDateTime) {
+        return nil, invalidArgument{
+            MethodName: "GetSlotDateFor",
+            Expected:   fmt.Sprintf("The given time \"%v\" must not be before the creation time of the genesis block %v.", t, timeSettings.GenesisBlockDateTime),
+        }
+    }
+    diff := t.Sub(timeSettings.GenesisBlockDateTime)
+    totalSlots := new(big.Int).SetInt64(int64(diff / timeSettings.SlotDuration))
+    epoch := new(big.Int).Div(totalSlots, timeSettings.SlotsPerEpoch)
+    slotsInEpoch := new(big.Int).Mod(totalSlots, timeSettings.SlotsPerEpoch)
+    return FullSlotDateFrom(epoch, slotsInEpoch, *timeSettings)
+}
