@@ -20,7 +20,7 @@ type SlotDate interface {
 //
 // A plain date does not know the number of slots
 // in  an epoch as well as the duration of a slot
-// in milliseconds. Moreover, the date time of the
+// in milliseconds. Moreover, the creation time of the
 // genesis block is unknown. Hence, a number of methods
 // are not available in the plain date, but can be
 // used if the plain date is transformed into a full
@@ -49,28 +49,28 @@ func PlainSlotDateFromInt(epoch uint64, slot uint64) *PlainSlotDate {
 }
 
 // gets the epoch of the date.
-func (date *PlainSlotDate) GetEpoch() *big.Int {
-    return date.epoch
+func (slotDate *PlainSlotDate) GetEpoch() *big.Int {
+    return slotDate.epoch
 }
 
 // gets the slot of the date.
-func (date *PlainSlotDate) GetSlot() *big.Int {
-    return date.slot
+func (slotDate *PlainSlotDate) GetSlot() *big.Int {
+    return slotDate.slot
 }
 
 // returns true, if this date is equal to the given
 // other date, otherwise false.
-func (date *PlainSlotDate) SameAs(otherDate *PlainSlotDate) bool {
-    return (date.GetEpoch().Cmp(otherDate.GetEpoch()) == 0) && (date.GetSlot().Cmp(otherDate.GetSlot()) == 0)
+func (slotDate *PlainSlotDate) SameAs(otherDate *PlainSlotDate) bool {
+    return (slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) == 0) && (slotDate.GetSlot().Cmp(otherDate.GetSlot()) == 0)
 }
 
 // returns true, if this date lies strictly before
 // the given other date, otherwise false.
-func (date *PlainSlotDate) Before(otherDate *PlainSlotDate) bool {
-    if date.GetEpoch().Cmp(otherDate.GetEpoch()) < 0 {
+func (slotDate *PlainSlotDate) Before(otherDate *PlainSlotDate) bool {
+    if slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) < 0 {
         return true
-    } else if date.GetEpoch().Cmp(otherDate.GetEpoch()) == 0 {
-        if date.GetSlot().Cmp(otherDate.GetSlot()) < 0 {
+    } else if slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) == 0 {
+        if slotDate.GetSlot().Cmp(otherDate.GetSlot()) < 0 {
             return true
         }
     }
@@ -79,11 +79,11 @@ func (date *PlainSlotDate) Before(otherDate *PlainSlotDate) bool {
 
 // returns true, if this date lies after the given
 // other date.
-func (date *PlainSlotDate) After(otherDate *PlainSlotDate) bool {
-    if date.GetEpoch().Cmp(otherDate.GetEpoch()) > 0 {
+func (slotDate *PlainSlotDate) After(otherDate *PlainSlotDate) bool {
+    if slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) > 0 {
         return true
-    } else if date.GetEpoch().Cmp(otherDate.GetEpoch()) == 0 {
-        if date.GetSlot().Cmp(otherDate.GetSlot()) > 0 {
+    } else if slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) == 0 {
+        if slotDate.GetSlot().Cmp(otherDate.GetSlot()) > 0 {
             return true
         }
     }
@@ -92,8 +92,8 @@ func (date *PlainSlotDate) After(otherDate *PlainSlotDate) bool {
 
 // returns the slot date as a plain string in the
 // format <EPOCH>.<SLOT>
-func (date *PlainSlotDate) String() string {
-    return fmt.Sprintf("%v.%v", date.GetEpoch(), date.GetSlot())
+func (slotDate *PlainSlotDate) String() string {
+    return fmt.Sprintf("%v.%v", slotDate.GetEpoch(), slotDate.GetSlot())
 }
 
 // parses plain slot date from the given text. A date must
@@ -148,15 +148,13 @@ type FullSlotDate struct {
     timeSettings TimeSettings
 }
 
-// settings of the Cardano blockchain relevant
-// for time.
+// settings of the Cardano blockchain relevant for time.
 type TimeSettings struct {
     // creation time of the genesis block.
     GenesisBlockDateTime time.Time
     // the number of slots an epoch is divided into.
     SlotsPerEpoch *big.Int
-    // a slot has fixed duration, and thus has a start
-    // and end date.
+    // a slot has fixed duration, and thus has a start and end date.
     SlotDuration time.Duration
 }
 
