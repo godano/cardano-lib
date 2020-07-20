@@ -73,5 +73,3 @@ the time settings of the blockchain.
 ## Contributions & Feedback 
 
 Contributions are welcome. If you have any suggestions, feel free to open an issue or submit a pull request.
-
-TICKER: [SOBIT](https://staking.outofbits.com)
