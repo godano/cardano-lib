@@ -5,4 +5,11 @@ go:
   - 1.12.x
   - 1.13.x
 
-go_import_path: github.com/sobitada/go-cardano
+os:
+  - linux
+  - windows
+  - osx
+
+go_import_path: github.com/godano/cardano-lib
+
+script: go test -v ./...
