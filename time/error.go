@@ -11,7 +11,7 @@ type ParsingError struct {
 }
 
 func (err ParsingError) Error() string {
-    return fmt.Sprintf("Failed to parse '%v'. %v", err.ParsedText, err.Reason)
+    return fmt.Sprintf("failed to parse '%v'. %v", err.ParsedText, err.Reason)
 }
 
 type InvalidArgument struct {
@@ -20,5 +20,5 @@ type InvalidArgument struct {
 }
 
 func (err InvalidArgument) Error() string {
-    return fmt.Sprintf("Invalid argument passed to '%v'. %v", err.MethodName, err.Expected)
+    return fmt.Sprintf("invalid argument passed to '%v'. %v", err.MethodName, err.Expected)
 }
