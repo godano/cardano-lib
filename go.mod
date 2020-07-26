@@ -1,4 +1,4 @@
-module github.com/outofbits/go-cardano
+module github.com/godano/cardano-lib
 
 go 1.13
 

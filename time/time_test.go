@@ -1,4 +1,4 @@
-package cardano
+package time
 
 import (
     "encoding/json"

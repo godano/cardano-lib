@@ -1,24 +1,24 @@
-package cardano
+package time
 
 import "fmt"
 
 // error when failing to parse time entities.
-type parsingError struct {
+type ParsingError struct {
     // text that should have been parsed.
     ParsedText string
     // reason why it cannot be parsed.
     Reason string
 }
 
-func (err parsingError) Error() string {
+func (err ParsingError) Error() string {
     return fmt.Sprintf("Failed to parse '%v'. %v", err.ParsedText, err.Reason)
 }
 
-type invalidArgument struct {
+type InvalidArgument struct {
     MethodName string
     Expected   string
 }
 
-func (err invalidArgument) Error() string {
+func (err InvalidArgument) Error() string {
     return fmt.Sprintf("Invalid argument passed to '%v'. %v", err.MethodName, err.Expected)
 }

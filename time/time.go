@@ -1,4 +1,4 @@
-package cardano
+package time
 
 import (
     "encoding/json"
@@ -35,7 +35,7 @@ type PlainSlotDate struct {
 // must both be positive.
 func PlainSlotDateFrom(epoch *big.Int, slot *big.Int) (*PlainSlotDate, error) {
     if epoch.Cmp(new(big.Int).SetInt64(0)) < 0 || slot.Cmp(new(big.Int).SetInt64(0)) < 0 {
-        return nil, invalidArgument{
+        return nil, InvalidArgument{
             MethodName: "PlainSlotDateFrom",
             Expected:   "The epoch and slot number must be positive.",
         }
@@ -111,12 +111,12 @@ func ParsePlainData(text string) (*PlainSlotDate, error) {
                         return &PlainSlotDate{epoch: epoch, slot: slot}, nil
                     }
                 }
-                return nil, parsingError{ParsedText: text, Reason: fmt.Sprintf("Slot must be a positive number, but was '%v'.", seps[1])}
+                return nil, ParsingError{ParsedText: text, Reason: fmt.Sprintf("Slot must be a positive number, but was '%v'.", seps[1])}
             }
         }
-        return nil, parsingError{ParsedText: text, Reason: fmt.Sprintf("Epoch must be a positive number, but was '%v'.", seps[0])}
+        return nil, ParsingError{ParsedText: text, Reason: fmt.Sprintf("Epoch must be a positive number, but was '%v'.", seps[0])}
     } else {
-        return nil, parsingError{ParsedText: text, Reason: "The date must be of the format '<EPOCH>.<SLOT>', where epoch and slot are positive numbers."}
+        return nil, ParsingError{ParsedText: text, Reason: "The date must be of the format '<EPOCH>.<SLOT>', where epoch and slot are positive numbers."}
     }
 }
 
@@ -181,7 +181,7 @@ func (date *FullSlotDate) GetEndDateTime() time.Time {
 
 func FullSlotDateFrom(epoch *big.Int, slot *big.Int, settings TimeSettings) (*FullSlotDate, error) {
     if epoch.Cmp(new(big.Int).SetInt64(0)) < 0 || slot.Cmp(new(big.Int).SetInt64(0)) < 0 {
-        return nil, invalidArgument{
+        return nil, InvalidArgument{
             MethodName: "PlainSlotDateFrom",
             Expected:   "The epoch and slot number must be positive.",
         }
@@ -200,7 +200,7 @@ func MakeFullSlotDate(plainDate *PlainSlotDate, settings TimeSettings) *FullSlot
 // gets the full slot date for the given time.
 func (timeSettings *TimeSettings) GetSlotDateFor(t time.Time) (*FullSlotDate, error) {
     if t.Before(timeSettings.GenesisBlockDateTime) {
-        return nil, invalidArgument{
+        return nil, InvalidArgument{
             MethodName: "GetSlotDateFor",
             Expected:   fmt.Sprintf("The given time \"%v\" must not be before the creation time of the genesis block %v.", t, timeSettings.GenesisBlockDateTime),
         }
