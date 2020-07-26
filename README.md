@@ -10,6 +10,9 @@ Utilities for operating with the Cardano blockchain. Supported currently:
 
 * [Time (Epoch and Slots)](docs/time)
 
+### Requirements
+* Golang >= 1.13.0
+
 ## Feedback & Contributions  
 
 Feedback and contributions are welcome. If you have any suggestions, feel free to open an issue or submit a pull request.
