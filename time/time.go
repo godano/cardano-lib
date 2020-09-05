@@ -1,213 +1,150 @@
 package time
 
 import (
-    "encoding/json"
-    "fmt"
-    "math/big"
-    "strings"
-    "time"
+	"fmt"
+	"math"
+	"math/big"
+	"time"
 )
 
-type SlotDate interface {
-    GetEpoch() *big.Int
-    GetSlot() *big.Int
+// AbstractSlotDate is determined by its specific epoch and slot number. However, it is missing further
+// information about the time settings of the Cardano blockchain. An AbstractSlotDate doesn't know the number of
+// slots per epoch as well as the duration of a slot. Moreover, the creation time of the genesis block is unknown.
+// Hence, a number of methods are not available in the AbstractSlotDate, but can be used if the AbstractSlotDate
+// is transformed into a ConcreteSlotDate by passing the required time settings of the blockchain.
+type AbstractSlotDate struct {
+	epoch uint64
+	slot  uint64
 }
 
-// a plain slot date is only determined by its
-// epoch and slot. A plain date is missing further
-// information about the time settings of the Cardano
-// blockchain.
-//
-// A plain date does not know the number of slots
-// in  an epoch as well as the duration of a slot
-// in milliseconds. Moreover, the creation time of the
-// genesis block is unknown. Hence, a number of methods
-// are not available in the plain date, but can be
-// used if the plain date is transformed into a full
-// date by passing the required time settings of the
-// blockchain.
-type PlainSlotDate struct {
-    epoch *big.Int
-    slot  *big.Int
+// ConcreteSlotDate contains all information of an AbstractSlotDate, but has additionally information about the
+// time settings of a concrete blockchain (it exists in).
+type ConcreteSlotDate struct {
+	AbstractSlotDate
+	// time settings of the concrete blockchain
+	timeSettings Settings
 }
 
-// creates the plain slot date from the given epoch and slot number, which
-// must both be positive.
-func PlainSlotDateFrom(epoch *big.Int, slot *big.Int) (*PlainSlotDate, error) {
-    if epoch.Cmp(new(big.Int).SetInt64(0)) < 0 || slot.Cmp(new(big.Int).SetInt64(0)) < 0 {
-        return nil, InvalidArgument{
-            MethodName: "PlainSlotDateFrom",
-            Expected:   "The epoch and slot number must be positive.",
-        }
-    }
-    return &PlainSlotDate{epoch: epoch, slot: slot}, nil
+// Settings of a concrete Cardano blockchain relevant for time.
+type Settings struct {
+	// creation time of the genesis block.
+	GenesisBlockDateTime time.Time
+	// the number of slots an epoch is divided into.
+	SlotsPerEpoch uint64
+	// a slot has a fixed duration.
+	SlotDuration time.Duration
 }
 
-// creates the plain slot date from the given epoch and slot number.
-func PlainSlotDateFromInt(epoch uint64, slot uint64) *PlainSlotDate {
-    return &PlainSlotDate{epoch: new(big.Int).SetUint64(epoch), slot: new(big.Int).SetUint64(slot)}
+// SlotOutOfBoundsError describes an error, where a given slot number exceeds
+// the number of slots per epoch for a concrete blockchain.
+type SlotOutOfBoundsError struct {
+	Slot          uint64
+	SlotsPerEpoch uint64
 }
 
-// gets the epoch of the date.
-func (slotDate *PlainSlotDate) GetEpoch() *big.Int {
-    return slotDate.epoch
+func (e SlotOutOfBoundsError) Error() string {
+	return fmt.Sprintf("slot number %d exceeds the number of slots per epoch (%d)", e.Slot, e.SlotsPerEpoch)
 }
 
-// gets the slot of the date.
-func (slotDate *PlainSlotDate) GetSlot() *big.Int {
-    return slotDate.slot
+// NewAbstractSlotDate creates a new abstract slot date from the given epoch and slot number.
+func NewAbstractSlotDate(epoch uint64, slot uint64) *AbstractSlotDate {
+	return &AbstractSlotDate{epoch: epoch, slot: slot}
 }
 
-// returns true, if this date is equal to the given
-// other date, otherwise false.
-func (slotDate *PlainSlotDate) SameAs(otherDate *PlainSlotDate) bool {
-    return (slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) == 0) && (slotDate.GetSlot().Cmp(otherDate.GetSlot()) == 0)
+// NewConcreteSlotDate creates a new concrete slot date from the given epoch and slot number as well as
+// the Settings of the concrete blockchain. A SlotOutOfBoundsError will be returned, if the given slot
+// number exceeds the number of slots per epoch in the given Settings.
+func NewConcreteSlotDate(epoch uint64, slot uint64, settings Settings) (*ConcreteSlotDate, error) {
+	if slot >= settings.SlotsPerEpoch {
+		return nil, &SlotOutOfBoundsError{
+			Slot:          slot,
+			SlotsPerEpoch: settings.SlotsPerEpoch,
+		}
+	}
+	return &ConcreteSlotDate{AbstractSlotDate: AbstractSlotDate{epoch: epoch, slot: slot}, timeSettings: settings}, nil
 }
 
-// returns true, if this date lies strictly before
-// the given other date, otherwise false.
-func (slotDate *PlainSlotDate) Before(otherDate *PlainSlotDate) bool {
-    if slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) < 0 {
-        return true
-    } else if slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) == 0 {
-        if slotDate.GetSlot().Cmp(otherDate.GetSlot()) < 0 {
-            return true
-        }
-    }
-    return false
+// MaterializeSlotDate transforms an AbstractSlotDate into a ConcreteSlotDate by passing the Settings
+// of the concrete blockchain. A SlotOutOfBoundsError will be returned, if the slot number of the given
+// AbstractSlotDate exceeds the number of slots per epoch in the given Settings.
+func MaterializeSlotDate(abstractDate *AbstractSlotDate, settings Settings) (*ConcreteSlotDate, error) {
+	return NewConcreteSlotDate(abstractDate.epoch, abstractDate.slot, settings)
 }
 
-// returns true, if this date lies after the given
-// other date.
-func (slotDate *PlainSlotDate) After(otherDate *PlainSlotDate) bool {
-    if slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) > 0 {
-        return true
-    } else if slotDate.GetEpoch().Cmp(otherDate.GetEpoch()) == 0 {
-        if slotDate.GetSlot().Cmp(otherDate.GetSlot()) > 0 {
-            return true
-        }
-    }
-    return false
+// GetEpoch gets the epoch of an AbstractSlotDate.
+func (abstractDate *AbstractSlotDate) GetEpoch() uint64 {
+	return abstractDate.epoch
 }
 
-// returns the slot date as a plain string in the
-// format <EPOCH>.<SLOT>
-func (slotDate *PlainSlotDate) String() string {
-    return fmt.Sprintf("%v.%v", slotDate.GetEpoch(), slotDate.GetSlot())
+// GetSlot gets the slot of an AbstractSlotDate.
+func (abstractDate *AbstractSlotDate) GetSlot() uint64 {
+	return abstractDate.slot
 }
 
-// parses plain slot date from the given text. A date must
-// be of the format "<EPOCH>.<SLOT>". if parsing fails,
-// an error will be returned.
-func ParsePlainData(text string) (*PlainSlotDate, error) {
-    seps := strings.Split(text, ".")
-    if len(seps) == 2 {
-        epoch, success := new(big.Int).SetString(seps[0], 10)
-        if success {
-            if epoch.Cmp(new(big.Int).SetInt64(0)) >= 0 {
-                slot, success := new(big.Int).SetString(seps[1], 10)
-                if success {
-                    if slot.Cmp(new(big.Int).SetInt64(0)) >= 0 {
-                        return &PlainSlotDate{epoch: epoch, slot: slot}, nil
-                    }
-                }
-                return nil, ParsingError{ParsedText: text, Reason: fmt.Sprintf("Slot must be a positive number, but was '%v'.", seps[1])}
-            }
-        }
-        return nil, ParsingError{ParsedText: text, Reason: fmt.Sprintf("Epoch must be a positive number, but was '%v'.", seps[0])}
-    } else {
-        return nil, ParsingError{ParsedText: text, Reason: "The date must be of the format '<EPOCH>.<SLOT>', where epoch and slot are positive numbers."}
-    }
+// SameAs checks whether this AbstractSlotDate and given other AbstractSlotDate are referring to the same slot date.
+func (abstractDate *AbstractSlotDate) SameAs(otherDate *AbstractSlotDate) bool {
+	return abstractDate.epoch == otherDate.epoch && abstractDate.slot == otherDate.slot
 }
 
-// JSON Marshaling of plain slot date.
-func (slotDate *PlainSlotDate) MarshalJSON() ([]byte, error) {
-    return json.Marshal(slotDate.String())
+// Before checks whether this AbstractSlotDate is strictly before the given other AbstractSlotDate.
+func (abstractDate *AbstractSlotDate) Before(otherDate *AbstractSlotDate) bool {
+	return abstractDate.epoch < otherDate.epoch ||
+		(abstractDate.epoch == otherDate.epoch && abstractDate.slot < otherDate.slot)
 }
 
-// JSON Unmarshaling of plain slot date.
-func (slotDate *PlainSlotDate) UnmarshalJSON(b []byte) error {
-    var slotDateString string
-    var err = json.Unmarshal(b, &slotDateString)
-    if err == nil {
-        var parsedSlotDate, err = ParsePlainData(slotDateString)
-        if err == nil {
-            slotDate.epoch = parsedSlotDate.GetEpoch()
-            slotDate.slot = parsedSlotDate.GetSlot()
-            return nil
-        }
-    }
-    return err
+// After checks whether this AbstractSlotDate is strictly after the given other AbstractSlotDate.
+func (abstractDate *AbstractSlotDate) After(otherDate *AbstractSlotDate) bool {
+	return abstractDate.epoch > otherDate.epoch ||
+		(abstractDate.epoch == otherDate.epoch && abstractDate.slot > otherDate.slot)
 }
 
-// a full slot data contains information of the plain slot
-// date including the epoch and slot number together with
-// the time settings of the blockchain.
-type FullSlotDate struct {
-    PlainSlotDate
-    timeSettings TimeSettings
+// String returns the AbstractSlotDate as a plain string in the format <EPOCH>.<SLOT>
+func (abstractDate *AbstractSlotDate) String() string {
+	return fmt.Sprintf("%v.%v", abstractDate.GetEpoch(), abstractDate.GetSlot())
 }
 
-// settings of the Cardano blockchain relevant for time.
-type TimeSettings struct {
-    // creation time of the genesis block.
-    GenesisBlockDateTime time.Time
-    // the number of slots an epoch is divided into.
-    SlotsPerEpoch *big.Int
-    // a slot has fixed duration, and thus has a start and end date.
-    SlotDuration time.Duration
+// Same checks whether this Settings is the same as the given other Settings
+func (timeSettings *Settings) Same(otherSettings *Settings) bool {
+	return (timeSettings.SlotsPerEpoch == otherSettings.SlotsPerEpoch) &&
+		(timeSettings.SlotDuration == otherSettings.SlotDuration) &&
+		(timeSettings.GenesisBlockDateTime.Sub(otherSettings.GenesisBlockDateTime) == 0)
 }
 
-// returns the number of slots that are between this
-// date and the other date.
-func (date *FullSlotDate) Diff(otherDate SlotDate) *big.Int {
-    a := new(big.Int).Add(new(big.Int).Mul(date.GetEpoch(), date.timeSettings.SlotsPerEpoch), date.GetSlot())
-    b := new(big.Int).Add(new(big.Int).Mul(otherDate.GetEpoch(), date.timeSettings.SlotsPerEpoch), otherDate.GetSlot())
-    return new(big.Int).Sub(a, b)
+// GetStartDateTime gets the start time of the given ConcreteSlotDate.
+func (concreteDate *ConcreteSlotDate) GetStartDateTime() time.Time {
+	thisEpoch := new(big.Int).SetUint64(concreteDate.epoch)
+	thisSlot := new(big.Int).SetUint64(concreteDate.slot)
+	slotDuration := new(big.Int).SetInt64(int64(concreteDate.timeSettings.SlotDuration))
+	maxDuration := new(big.Int).SetUint64(math.MaxInt64)
+	timeSettings := new(big.Int).SetUint64(concreteDate.timeSettings.SlotsPerEpoch)
+
+	duration := new(big.Int).Mul(new(big.Int).Add(new(big.Int).Mul(thisEpoch, timeSettings), thisSlot), slotDuration)
+	if duration.Cmp(maxDuration) <= 0 {
+		return concreteDate.timeSettings.GenesisBlockDateTime.Add(time.Duration(duration.Uint64()))
+	} else {
+		startTime := concreteDate.timeSettings.GenesisBlockDateTime
+		n := new(big.Int).Div(duration, maxDuration).Uint64()
+		for i := uint64(0); i < n; i++ {
+			startTime.Add(time.Duration(math.MaxInt64))
+		}
+		mod := new(big.Int).Mod(duration, maxDuration).Int64()
+		return startTime.Add(time.Duration(mod))
+	}
 }
 
-// gets an instant in time with nanosecond precision of
-// the start of the slot.
-func (date *FullSlotDate) GetStartDateTime() time.Time {
-    slots := new(big.Int).Add(new(big.Int).Mul(date.GetEpoch(), date.timeSettings.SlotsPerEpoch), date.GetSlot()).Uint64()
-    return date.timeSettings.GenesisBlockDateTime.Add(time.Duration(slots) * date.timeSettings.SlotDuration)
+// GetEndDateTime gets the end time of the given ConcreteSlotDate.
+func (concreteDate *ConcreteSlotDate) GetEndDateTime() time.Time {
+	return concreteDate.GetStartDateTime().Add(concreteDate.timeSettings.SlotDuration)
 }
 
-// gets an instant in time with nanosecond precision of
-// the end of the slot.
-func (date *FullSlotDate) GetEndDateTime() time.Time {
-    return date.GetStartDateTime().Add(date.timeSettings.SlotDuration)
-}
-
-func FullSlotDateFrom(epoch *big.Int, slot *big.Int, settings TimeSettings) (*FullSlotDate, error) {
-    if epoch.Cmp(new(big.Int).SetInt64(0)) < 0 || slot.Cmp(new(big.Int).SetInt64(0)) < 0 {
-        return nil, InvalidArgument{
-            MethodName: "PlainSlotDateFrom",
-            Expected:   "The epoch and slot number must be positive.",
-        }
-    }
-    return &FullSlotDate{PlainSlotDate: PlainSlotDate{epoch: epoch, slot: slot}, timeSettings: settings}, nil
-}
-
-func FullSlotDateFromInt(epoch uint64, slot uint64, settings TimeSettings) *FullSlotDate {
-    return &FullSlotDate{PlainSlotDate: PlainSlotDate{epoch: new(big.Int).SetUint64(epoch), slot: new(big.Int).SetUint64(slot)}, timeSettings: settings}
-}
-
-func MakeFullSlotDate(plainDate *PlainSlotDate, settings TimeSettings) *FullSlotDate {
-    return &FullSlotDate{PlainSlotDate: PlainSlotDate{epoch: plainDate.GetEpoch(), slot: plainDate.GetSlot()}, timeSettings: settings}
-}
-
-// gets the full slot date for the given time.
-func (timeSettings *TimeSettings) GetSlotDateFor(t time.Time) (*FullSlotDate, error) {
-    if t.Before(timeSettings.GenesisBlockDateTime) {
-        return nil, InvalidArgument{
-            MethodName: "GetSlotDateFor",
-            Expected:   fmt.Sprintf("The given time \"%v\" must not be before the creation time of the genesis block %v.", t, timeSettings.GenesisBlockDateTime),
-        }
-    }
-    diff := t.Sub(timeSettings.GenesisBlockDateTime)
-    totalSlots := new(big.Int).SetInt64(int64(diff / timeSettings.SlotDuration))
-    epoch := new(big.Int).Div(totalSlots, timeSettings.SlotsPerEpoch)
-    slotsInEpoch := new(big.Int).Mod(totalSlots, timeSettings.SlotsPerEpoch)
-    return FullSlotDateFrom(epoch, slotsInEpoch, *timeSettings)
+// Diff computes the difference in slots between this ConcreteSlotDate and the given other ConcreteSlotDate.
+func (concreteDate *ConcreteSlotDate) Diff(otherDate *ConcreteSlotDate) *big.Int {
+	thisSettings := new(big.Int).SetUint64(concreteDate.timeSettings.SlotsPerEpoch)
+	thisEpoch := new(big.Int).SetUint64(concreteDate.epoch)
+	otherEpoch := new(big.Int).SetUint64(otherDate.epoch)
+	thisSlot := new(big.Int).SetUint64(concreteDate.slot)
+	otherSlot := new(big.Int).SetUint64(otherDate.slot)
+	a := new(big.Int).Add(new(big.Int).Mul(thisEpoch, thisSettings), thisSlot)
+	b := new(big.Int).Add(new(big.Int).Mul(otherEpoch, thisSettings), otherSlot)
+	return new(big.Int).Sub(a, b)
 }
