@@ -121,16 +121,15 @@ func (concreteDate *ConcreteSlotDate) GetStartDateTime() time.Time {
 	duration := new(big.Int).Mul(new(big.Int).Add(new(big.Int).Mul(thisEpoch, timeSettings), thisSlot), slotDuration)
 	if duration.Cmp(maxDuration) <= 0 {
 		return concreteDate.timeSettings.GenesisBlockDateTime.Add(time.Duration(duration.Uint64()))
-	} else {
-		//todo: efficient handling of big slot dates
-		startTime := concreteDate.timeSettings.GenesisBlockDateTime
-		n := new(big.Int).Div(duration, maxDuration).Uint64()
-		for i := uint64(0); i < n; i++ {
-			startTime = startTime.Add(time.Duration(math.MaxInt64))
-		}
-		mod := new(big.Int).Mod(duration, maxDuration).Int64()
-		return startTime.Add(time.Duration(mod))
 	}
+	//todo: efficient handling of big slot dates
+	startTime := concreteDate.timeSettings.GenesisBlockDateTime
+	n := new(big.Int).Div(duration, maxDuration).Uint64()
+	for i := uint64(0); i < n; i++ {
+		startTime = startTime.Add(time.Duration(math.MaxInt64))
+	}
+	mod := new(big.Int).Mod(duration, maxDuration).Int64()
+	return startTime.Add(time.Duration(mod))
 }
 
 // GetEndDateTime gets the end time of the given ConcreteSlotDate.

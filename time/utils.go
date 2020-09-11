@@ -43,11 +43,10 @@ func ParseAbstractSlotDate(text string) (*AbstractSlotDate, error) {
 			ParsedText: text,
 			Reason:     fmt.Sprintf("epoch must be a positive number, but was '%v'", seps[0]),
 		}
-	} else {
-		return nil, ParsingError{
-			ParsedText: text,
-			Reason:     "the date must be of the format '<EPOCH>.<SLOT>', where epoch and slot are positive numbers",
-		}
+	}
+	return nil, ParsingError{
+		ParsedText: text,
+		Reason:     "the date must be of the format '<EPOCH>.<SLOT>', where epoch and slot are positive numbers",
 	}
 }
 
@@ -99,18 +98,17 @@ func (timeSettings *Settings) GetSlotDateFor(t time.Time) (*ConcreteSlotDate, er
 		epoch := slots / timeSettings.SlotsPerEpoch
 		slotsInEpoch := slots % timeSettings.SlotsPerEpoch
 		return NewConcreteSlotDate(epoch, slotsInEpoch, *timeSettings)
-	} else {
-		diff := new(big.Int).SetInt64(math.MaxInt64)
-		cursor := timeSettings.GenesisBlockDateTime.Add(math.MaxInt64)
-		for t.After(cursor.Add(math.MaxInt64)) {
-			cursor = cursor.Add(math.MaxInt64)
-			diff = new(big.Int).Add(diff, new(big.Int).SetInt64(math.MaxInt64))
-		}
-		diff = new(big.Int).Add(diff, new(big.Int).SetInt64(int64(t.Sub(cursor))))
-		slots := new(big.Int).Div(diff, new(big.Int).SetInt64(int64(timeSettings.SlotDuration)))
-		slotsPerEpoch := new(big.Int).SetUint64(timeSettings.SlotsPerEpoch)
-		epoch := new(big.Int).Div(slots, slotsPerEpoch)
-		slotsInEpoch := new(big.Int).Mod(slots, slotsPerEpoch)
-		return NewConcreteSlotDate(epoch.Uint64(), slotsInEpoch.Uint64(), *timeSettings)
 	}
+	diff := new(big.Int).SetInt64(math.MaxInt64)
+	cursor := timeSettings.GenesisBlockDateTime.Add(math.MaxInt64)
+	for t.After(cursor.Add(math.MaxInt64)) {
+		cursor = cursor.Add(math.MaxInt64)
+		diff = new(big.Int).Add(diff, new(big.Int).SetInt64(math.MaxInt64))
+	}
+	diff = new(big.Int).Add(diff, new(big.Int).SetInt64(int64(t.Sub(cursor))))
+	slots := new(big.Int).Div(diff, new(big.Int).SetInt64(int64(timeSettings.SlotDuration)))
+	slotsPerEpoch := new(big.Int).SetUint64(timeSettings.SlotsPerEpoch)
+	epoch := new(big.Int).Div(slots, slotsPerEpoch)
+	slotsInEpoch := new(big.Int).Mod(slots, slotsPerEpoch)
+	return NewConcreteSlotDate(epoch.Uint64(), slotsInEpoch.Uint64(), *timeSettings)
 }
