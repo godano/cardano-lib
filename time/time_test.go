@@ -2,18 +2,68 @@ package time
 
 import (
 	"github.com/stretchr/testify/assert"
+	"math"
+	"math/big"
 	"testing"
 	"time"
 )
 
-func TestAbstractSlotDate_ParseCorrectSlotDateString(t *testing.T) {
-	AbstractSlotDate, err := ParseAbstractSlotDate("4.15")
-	if assert.Nil(t, err, "Parsing must be successful, but returns error.") {
-		if assert.NotNil(t, AbstractSlotDate, "Result of the parsing must not be nil.") {
-			assert.Equal(t, AbstractSlotDate.GetEpoch(), uint64(4))
-			assert.Equal(t, AbstractSlotDate.GetSlot(), uint64(15))
-		}
+func TestAbstractSlotDate_NewAbstractSlotDate_mustReturnValidDate(t *testing.T) {
+	date := NewAbstractSlotDate(24, 400)
+	assert.Equal(t, uint64(24), date.GetEpoch(), "The epoch of created slot date must be 24.")
+	assert.Equal(t, uint64(400), date.GetSlot(), "The slot of the created slot date must be 400.")
+}
+
+func TestConcreteDate_NewConcreteSlotDate_mustReturnValidDate(t *testing.T) {
+	genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
+	settings := Settings{
+		GenesisBlockDateTime: genesisTime,
+		SlotsPerEpoch:        uint64(43200),
+		SlotDuration:         time.Duration(2) * time.Second,
 	}
+	date, err := NewConcreteSlotDate(24, 400, settings)
+	if assert.Nil(t, err) {
+		assert.Equal(t, uint64(24), date.GetEpoch(), "The epoch of created slot date must be 24.")
+		assert.Equal(t, uint64(400), date.GetSlot(), "The slot of the created slot date must be 400.")
+	}
+}
+
+func TestConcreteDate_NewConcreteSlotDateForSlotOutOfBound_mustReturnError(t *testing.T) {
+	genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
+	settings := Settings{
+		GenesisBlockDateTime: genesisTime,
+		SlotsPerEpoch:        uint64(43200),
+		SlotDuration:         time.Duration(2) * time.Second,
+	}
+	_, err := NewConcreteSlotDate(24, 43200, settings)
+	assert.NotNil(t, err, "Method must return an error, because slot is out of bounds.")
+}
+
+func TestConcreteDate_MaterializeAbstractSlotDate_mustReturnValidConcreteDate(t *testing.T) {
+	genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
+	settings := Settings{
+		GenesisBlockDateTime: genesisTime,
+		SlotsPerEpoch:        uint64(43200),
+		SlotDuration:         time.Duration(2) * time.Second,
+	}
+	abstractDate := NewAbstractSlotDate(24, 400)
+	date, err := MaterializeSlotDate(abstractDate, settings)
+	if assert.Nil(t, err) {
+		assert.Equal(t, uint64(24), date.GetEpoch(), "The epoch of created slot date must be 24.")
+		assert.Equal(t, uint64(400), date.GetSlot(), "The slot of the created slot date must be 400.")
+	}
+}
+
+func TestConcreteDate_MaterializeAOutOfBoundsAbstractSlotDate_mustReturnError(t *testing.T) {
+	genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
+	settings := Settings{
+		GenesisBlockDateTime: genesisTime,
+		SlotsPerEpoch:        uint64(43200),
+		SlotDuration:         time.Duration(2) * time.Second,
+	}
+	abstractDate := NewAbstractSlotDate(24, 43200)
+	_, err := MaterializeSlotDate(abstractDate, settings)
+	assert.NotNil(t, err, "Method must return an error, because slot is out of bounds.")
 }
 
 func TestAbstractSlotDate_CompareEqualityOfSlotDates_mustReturnTrue(t *testing.T) {
@@ -115,7 +165,25 @@ func TestAbstractSlotDate_ADiffB_mustReturnNegative(t *testing.T) {
 	}
 }
 
-func TestConcreteSlotDate_GetStartAndEndTime(t *testing.T) {
+func TestAbstractSlotDate_BigDateADiffB_mustReturnPositive(t *testing.T) {
+	genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
+	settings := Settings{
+		GenesisBlockDateTime: genesisTime,
+		SlotsPerEpoch: uint64(43200),
+		SlotDuration: time.Duration(2) * time.Second,
+	}
+	dateA, err := NewConcreteSlotDate(math.MaxUint64, 100, settings)
+	if assert.Nil(t, err) {
+		dateB, err := NewConcreteSlotDate(10, 35600, settings)
+		if assert.Nil(t, err) {
+			expected, _ := new(big.Int).SetString("796899343984252629300500", 10)
+			assert.Equal(t, 0, expected.Cmp(dateA.Diff(dateB)),
+				"The difference must be 796899343984252629300500. Compare must hence deliver 0.")
+		}
+	}
+}
+
+func TestConcreteSlotDate_GetStartAndEndTime_mustReturnCorrectTime(t *testing.T) {
 	// setup
 	genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
 	settings := Settings{
@@ -129,6 +197,26 @@ func TestConcreteSlotDate_GetStartAndEndTime(t *testing.T) {
 		expectedStart, _ := time.Parse(time.RFC3339, "2019-12-31T02:08:43+01:00")
 		diff := date.GetStartDateTime().Sub(expectedStart)
 		assert.Equal(t, time.Duration(0), diff,
-			"The start time must be at '2019-12-31T02:08:43+01:00', but there was a '%s' difference.", diff.String())
+			"The start time must be at '2019-12-31T02:08:43+01:00', but there was a '%s' difference.",
+			diff.String())
+	}
+}
+
+func TestConcreteSlotDate_GetStartAndEndTimeOfBigSlotDate(t *testing.T) {
+	// setup
+	genesisTime, _ := time.Parse(time.RFC3339, "2019-12-13T19:13:37+00:00")
+	settings := Settings{
+		GenesisBlockDateTime: genesisTime,
+		SlotsPerEpoch: uint64(43200),
+		SlotDuration: time.Duration(2) * time.Second,
+	}
+	date, err := NewConcreteSlotDate(math.MaxUint64, 10653, settings)
+	if assert.Nil(t, err) {
+		// test
+		expectedStart, _ := time.Parse(time.RFC3339, "2019-12-31T02:08:43+01:00")
+		diff := date.GetStartDateTime().Sub(expectedStart)
+		assert.Equal(t, time.Duration(0), diff,
+			"The start time must be at '2019-12-31T02:08:43+01:00', but there was a '%s' difference.",
+			diff.String())
 	}
 }

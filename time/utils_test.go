@@ -7,6 +7,16 @@ import (
 	"time"
 )
 
+func TestAbstractSlotDate_ParseCorrectSlotDateString(t *testing.T) {
+	AbstractSlotDate, err := ParseAbstractSlotDate("4.15")
+	if assert.Nil(t, err, "Parsing must be successful, but returns error.") {
+		if assert.NotNil(t, AbstractSlotDate, "Result of the parsing must not be nil.") {
+			assert.Equal(t, AbstractSlotDate.GetEpoch(), uint64(4))
+			assert.Equal(t, AbstractSlotDate.GetSlot(), uint64(15))
+		}
+	}
+}
+
 func TestAbstractSlotDate_ParseSlotDateStringInWrongFormat_mustThrowError(t *testing.T) {
 	_, err := ParseAbstractSlotDate("1-17")
 	assert.NotNil(t, err, "'1-17' is in the wrong format and parser must return an error.")
